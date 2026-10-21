@@ -1,36 +1,65 @@
-version: '3.8'
-
 services:
-  # 1. PostgreSQL Database
+  # 1. Database PostgreSQL
   postgres:
     image: postgres:15-alpine
+    container_name: laravel_postgres
     environment:
       POSTGRES_DB: laravel
       POSTGRES_USER: root
       POSTGRES_PASSWORD: password_anda
     ports:
-      - "5432:5432"
+    - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - app-network
 
   # 2. Laravel Backend
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: DockerFile
+    container_name: laravel_backend
     ports:
       - "8000:8000"
+    volumes:
+      - ./backend:/var/www
+    # env_file:
+    #   - ./backend/.env
     environment:
-      - DB_CONNECTION=pgsql
-      - DB_HOST=postgres
-      - DB_DATABASE=laravel
-      - DB_USERNAME=root
-      - DB_PASSWORD=password_anda
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: laravel
+      DB_USERNAME: root
+      DB_PASSWORD: password_anda
     depends_on:
       - postgres
+    networks:
+      - app-network
 
   # 3. Next.js Frontend
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: DockerFile
+    container_name: nextjs_frontend
     ports:
       - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/.next
+      - /app/node_modules
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000/api
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api
     depends_on:
       - backend
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  pgdata:

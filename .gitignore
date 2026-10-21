@@ -1,0 +1,6 @@
+# Ignore file environment yang berisi password asli
+.env
+.env.local
+
+# Ignore folder data postgres agar tidak ikut ke-push ke git
+pgdata/
