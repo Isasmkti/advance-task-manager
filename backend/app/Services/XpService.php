@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Enums\Difficulty;
 use App\Models\Quest;
 use App\Models\User;
+use DateTimeImmutable;
+use DateTimeZone;
 use Illuminate\Support\Facades\DB;
 
 class XpService
@@ -35,12 +37,20 @@ class XpService
         };
     }
 
-    /** Tanggal (Y-m-d) terakhir user menyelesaikan quest, atau null. */
-    private static function lastDate(User $user): ?string
+    /** Ambil bagian tanggal (Y-m-d) dari nilai kolom date, atau null. */
+    public static function dateString(mixed $value): ?string
     {
-        return $user->last_completed_on
-            ? substr((string) $user->last_completed_on, 0, 10)
-            : null;
+        return $value ? substr((string) $value, 0, 10) : null;
+    }
+
+    /** Selisih hari kalender antara dua tanggal Y-m-d (to - from). */
+    public static function daysBetween(string $from, string $to): int
+    {
+        $utc = new DateTimeZone('UTC');
+        $a = DateTimeImmutable::createFromFormat('!Y-m-d', $from, $utc);
+        $b = DateTimeImmutable::createFromFormat('!Y-m-d', $to, $utc);
+
+        return (int) round(($b->getTimestamp() - $a->getTimestamp()) / 86400);
     }
 
     private static function timezoneOf(User $user): string
@@ -49,21 +59,24 @@ class XpService
     }
 
     /**
-     * Streak yang ditampilkan: kalau user tidak menyelesaikan quest
-     * kemarin maupun hari ini (menurut zona waktunya), streak dianggap putus.
+     * Streak yang ditampilkan. Hari yang terlewat bisa "ditutup" oleh streak freeze:
+     * streak aman kalau jumlah freeze >= jumlah hari yang terlewat; kalau tidak, dianggap putus.
      */
     public static function effectiveStreak(User $user): int
     {
-        $last = self::lastDate($user);
+        $last = self::dateString($user->last_completed_on);
         if ($last === null) {
             return 0;
         }
 
-        $tz = self::timezoneOf($user);
-        $today = now($tz)->toDateString();
-        $yesterday = now($tz)->subDay()->toDateString();
+        $today = now(self::timezoneOf($user))->toDateString();
+        $gap = self::daysBetween($last, $today);
 
-        return in_array($last, [$today, $yesterday], true) ? $user->current_streak : 0;
+        if ($gap <= 1) {
+            return $user->current_streak;
+        }
+
+        return $user->streak_freezes >= $gap - 1 ? $user->current_streak : 0;
     }
 
     public static function progress(User $user): array
@@ -76,14 +89,20 @@ class XpService
             'coins' => $user->coins,
             'current_streak' => self::effectiveStreak($user),
             'longest_streak' => $user->longest_streak,
+            'streak_freezes' => $user->streak_freezes,
+            'freeze_price' => (int) config('game.freeze_price'),
+            'freeze_max' => (int) config('game.freeze_max'),
+            'hp' => $user->hp,
+            'max_hp' => (int) config('game.hp_max'),
+            'sleeping' => $user->hp <= 0,
         ];
     }
 
-    public function calculateReward(Quest $quest): int
+    public function calculateReward(Quest $quest, bool $withBonus = true): int
     {
         $xp = Difficulty::from($quest->difficulty)->xp();
 
-        if ($quest->due_at && now()->lte($quest->due_at)) {
+        if ($withBonus && $quest->due_at && now()->lte($quest->due_at)) {
             $xp += (int) round($xp * self::EARLY_BONUS);
         }
 
@@ -91,8 +110,9 @@ class XpService
     }
 
     /**
-     * Menyelesaikan quest milik user: memberi XP (dengan bonus streak), koin,
-     * memperbarui streak, dan menaikkan level. Semua dihitung di server dalam satu transaksi.
+     * Menyelesaikan quest milik user: memberi XP, koin, memperbarui streak
+     * (dengan streak freeze otomatis), dan menaikkan level.
+     * Kalau HP habis (hero tidur), semua bonus XP (deadline dan streak) hilang hari itu.
      */
     public function complete(User $user, int $questId): array
     {
@@ -107,23 +127,36 @@ class XpService
 
             $hero = User::lockForUpdate()->findOrFail($user->id);
             $oldLevel = $hero->level;
+            $asleep = $hero->hp <= 0;
 
             // Streak dihitung berdasarkan hari menurut zona waktu user.
-            $tz = self::timezoneOf($hero);
-            $today = now($tz)->toDateString();
-            $yesterday = now($tz)->subDay()->toDateString();
-            $last = self::lastDate($hero);
+            $today = now(self::timezoneOf($hero))->toDateString();
+            $last = self::dateString($hero->last_completed_on);
+            $freezesUsed = 0;
 
-            if ($last === $today) {
-                $streak = max(1, $hero->current_streak);
-            } elseif ($last === $yesterday) {
-                $streak = $hero->current_streak + 1;
-            } else {
+            if ($last === null) {
                 $streak = 1;
+            } else {
+                $gap = self::daysBetween($last, $today);
+
+                if ($gap <= 0) {
+                    $streak = max(1, $hero->current_streak);
+                } elseif ($gap === 1) {
+                    $streak = $hero->current_streak + 1;
+                } else {
+                    $missed = $gap - 1;
+
+                    if ($hero->streak_freezes >= $missed) {
+                        $freezesUsed = $missed;
+                        $streak = $hero->current_streak + 1;
+                    } else {
+                        $streak = 1;
+                    }
+                }
             }
 
-            $multiplier = self::streakMultiplier($streak);
-            $xp = (int) round($this->calculateReward($quest) * $multiplier);
+            $multiplier = $asleep ? 1.0 : self::streakMultiplier($streak);
+            $xp = (int) round($this->calculateReward($quest, ! $asleep) * $multiplier);
             $coins = Difficulty::from($quest->difficulty)->coins();
 
             $quest->forceFill([
@@ -137,6 +170,7 @@ class XpService
             $hero->coins += $coins;
             $hero->current_streak = $streak;
             $hero->longest_streak = max($hero->longest_streak, $streak);
+            $hero->streak_freezes -= $freezesUsed;
             $hero->last_completed_on = $today;
             $hero->save();
 
@@ -145,6 +179,8 @@ class XpService
                 'xp_awarded' => $xp,
                 'coins_awarded' => $coins,
                 'streak_multiplier' => $multiplier,
+                'freezes_used' => $freezesUsed,
+                'asleep' => $asleep,
                 'leveled_up' => $hero->level > $oldLevel,
                 'progress' => self::progress($hero),
             ];

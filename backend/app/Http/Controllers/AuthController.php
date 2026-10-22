@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\HeroStateService;
 use App\Services\XpService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -10,6 +11,10 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    public function __construct(private HeroStateService $hero)
+    {
+    }
+
     public function register(Request $request)
     {
         $data = $request->validate([
@@ -27,9 +32,11 @@ class AuthController extends Controller
         $user->timezone = $data['timezone'] ?? 'Asia/Jakarta';
         $user->save();
 
+        $this->hero->settle($user);
+
         return response()->json([
             'token' => $user->createToken('web')->plainTextToken,
-            'user' => $this->payload($user->fresh()),
+            'user' => $this->payload($user),
         ], 201);
     }
 
@@ -47,6 +54,9 @@ class AuthController extends Controller
                 'email' => ['Email atau password salah.'],
             ]);
         }
+
+        // Pastikan HP dan penalti sudah mutakhir sebelum data hero dikirim.
+        $this->hero->settle($user);
 
         return response()->json([
             'token' => $user->createToken('web')->plainTextToken,
@@ -66,7 +76,7 @@ class AuthController extends Controller
         return $this->payload($request->user());
     }
 
-    /** PUT /me: ubah zona waktu (menentukan pergantian hari untuk streak). */
+    /** PUT /me: ubah zona waktu (menentukan pergantian hari untuk streak dan HP). */
     public function update(Request $request)
     {
         $data = $request->validate([

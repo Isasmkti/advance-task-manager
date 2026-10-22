@@ -8,6 +8,12 @@ export interface HeroProgress {
   coins: number;
   current_streak: number;
   longest_streak: number;
+  streak_freezes: number;
+  freeze_price: number;
+  freeze_max: number;
+  hp: number;
+  max_hp: number;
+  sleeping: boolean;
 }
 
 export interface User extends HeroProgress {
@@ -48,6 +54,8 @@ export interface CompleteResult {
   xp_awarded: number;
   coins_awarded: number;
   streak_multiplier: number;
+  freezes_used: number;
+  asleep: boolean;
   leveled_up: boolean;
   progress: HeroProgress;
 }

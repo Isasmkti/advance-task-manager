@@ -47,13 +47,14 @@ export function useQuests() {
       setQuests((prev) => prev.map((q) => (q.id === id ? res.quest : q)));
       setProgress(res.progress);
 
-      const reward = `+${res.xp_awarded} XP, +${res.coins_awarded} koin`;
-      const streak =
-        res.streak_multiplier > 1 ? ` (bonus streak x${res.streak_multiplier})` : "";
+      const parts = [`+${res.xp_awarded} XP, +${res.coins_awarded} koin`];
+      if (res.streak_multiplier > 1) parts.push(`bonus streak x${res.streak_multiplier}`);
+      if (res.freezes_used > 0) parts.push(`${res.freezes_used} streak freeze terpakai`);
+      if (res.asleep) parts.push("hero sedang tidur, tanpa bonus");
+
+      const text = parts.join(" · ");
       setNotice(
-        res.leveled_up
-          ? `Level up! Kamu sekarang level ${res.progress.level}. ${reward}${streak}`
-          : `${reward}${streak}`,
+        res.leveled_up ? `Level up! Kamu sekarang level ${res.progress.level}. ${text}` : text,
       );
       setError(null);
     } catch (e) {
