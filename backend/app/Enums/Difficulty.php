@@ -19,4 +19,15 @@ enum Difficulty: string
             self::Epic => 100,
         };
     }
+
+    /** Koin tetap per tingkat kesulitan (tidak terpengaruh streak). */
+    public function coins(): int
+    {
+        return match ($this) {
+            self::Easy => 5,
+            self::Medium => 10,
+            self::Hard => 25,
+            self::Epic => 50,
+        };
+    }
 }

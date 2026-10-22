@@ -5,12 +5,16 @@ export interface HeroProgress {
   total_xp: number;
   level_start_xp: number;
   next_level_xp: number;
+  coins: number;
+  current_streak: number;
+  longest_streak: number;
 }
 
 export interface User extends HeroProgress {
   id: number;
   name: string;
   email: string;
+  timezone: string;
 }
 
 export interface Category {
@@ -28,6 +32,7 @@ export interface Quest {
   due_at: string | null;
   completed_at: string | null;
   xp_awarded: number | null;
+  coins_awarded: number | null;
 }
 
 export interface QuestInput {
@@ -41,6 +46,8 @@ export interface QuestInput {
 export interface CompleteResult {
   quest: Quest;
   xp_awarded: number;
+  coins_awarded: number;
+  streak_multiplier: number;
   leveled_up: boolean;
   progress: HeroProgress;
 }

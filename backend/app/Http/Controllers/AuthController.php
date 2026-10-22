@@ -16,13 +16,16 @@ class AuthController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8'],
+            'timezone' => ['nullable', 'timezone'],
         ]);
 
-        $user = User::create([
+        $user = new User([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
         ]);
+        $user->timezone = $data['timezone'] ?? 'Asia/Jakarta';
+        $user->save();
 
         return response()->json([
             'token' => $user->createToken('web')->plainTextToken,
@@ -63,12 +66,27 @@ class AuthController extends Controller
         return $this->payload($request->user());
     }
 
+    /** PUT /me: ubah zona waktu (menentukan pergantian hari untuk streak). */
+    public function update(Request $request)
+    {
+        $data = $request->validate([
+            'timezone' => ['required', 'timezone'],
+        ]);
+
+        $user = $request->user();
+        $user->timezone = $data['timezone'];
+        $user->save();
+
+        return $this->payload($user);
+    }
+
     private function payload(User $user): array
     {
         return [
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
+            'timezone' => $user->timezone,
             ...XpService::progress($user),
         ];
     }

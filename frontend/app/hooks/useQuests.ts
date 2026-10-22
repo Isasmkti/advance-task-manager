@@ -46,10 +46,14 @@ export function useQuests() {
       const res = await questsApi.complete(id);
       setQuests((prev) => prev.map((q) => (q.id === id ? res.quest : q)));
       setProgress(res.progress);
+
+      const reward = `+${res.xp_awarded} XP, +${res.coins_awarded} koin`;
+      const streak =
+        res.streak_multiplier > 1 ? ` (bonus streak x${res.streak_multiplier})` : "";
       setNotice(
         res.leveled_up
-          ? `Level up! Kamu sekarang level ${res.progress.level} (+${res.xp_awarded} XP)`
-          : `+${res.xp_awarded} XP`,
+          ? `Level up! Kamu sekarang level ${res.progress.level}. ${reward}${streak}`
+          : `${reward}${streak}`,
       );
       setError(null);
     } catch (e) {

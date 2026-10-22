@@ -40,7 +40,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const register = useCallback(async (name: string, email: string, password: string) => {
-    const res = await authApi.register({ name, email, password });
+    // Zona waktu browser dipakai server untuk menentukan pergantian hari streak.
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const res = await authApi.register({ name, email, password, timezone });
     tokenStorage.set(res.token);
     setUser(res.user);
   }, []);
