@@ -1,0 +1,30 @@
+# Dependencies
+/node_modules
+
+# Hasil build lokal Next.js
+/.next
+/out
+
+# Environment Variables (Gunakan environment variables dari Docker/Coolify/Vercel saat deployment)
+.env
+.env*.local
+
+# Git & Docker
+.git
+.gitignore
+.github
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# IDE & Logs
+.idea
+.vscode
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+
+# Public assets yang tidak perlu (opsional, sesuaikan kebutuhan)
+/public/temp

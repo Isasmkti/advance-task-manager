@@ -1,0 +1,31 @@
+# Dependencies
+/vendor
+
+# Storage & Cache lokal (biarkan struktur foldernya tetap ada lewat .gitignore)
+/storage/*.key
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/logs/*
+!/storage/framework/cache/.gitignore
+!/storage/framework/sessions/.gitignore
+!/storage/framework/views/.gitignore
+!/storage/logs/.gitignore
+
+# Environment & Config Sensitif
+.env
+.env.backup
+
+# Git & Docker
+.git
+.gitignore
+.github
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# IDE & Testing
+.idea
+.vscode
+/tests
+/phpunit.xml

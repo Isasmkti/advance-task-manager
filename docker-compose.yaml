@@ -1,14 +1,16 @@
+version: '3.8'
+
 services:
   # 1. Database PostgreSQL
   postgres:
     image: postgres:15-alpine
     container_name: laravel_postgres
     environment:
-      POSTGRES_DB: laravel
-      POSTGRES_USER: root
-      POSTGRES_PASSWORD: password_anda
+      POSTGRES_DB: task-manager
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: obim1234
     ports:
-    - "5433:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
@@ -18,21 +20,16 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: DockerFile
+      dockerfile: Dockerfile  # Perhatikan huruf besar/kecil (biasanya dockerfile, bukan DockerFile)
     container_name: laravel_backend
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/var/www
-    # env_file:
-    #   - ./backend/.env
+    env_file:
+      - .env  # Asumsinya .env ada di folder luar (sejajar compose), ganti ke ./backend/.env jika ada di dalam folder backend
     environment:
-      DB_CONNECTION: pgsql
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_DATABASE: laravel
-      DB_USERNAME: root
-      DB_PASSWORD: password_anda
+      - DB_HOST=postgres  # Langsung arahkan ke nama service postgres
     depends_on:
       - postgres
     networks:
@@ -42,7 +39,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: DockerFile
+      dockerfile: Dockerfile
     container_name: nextjs_frontend
     ports:
       - "3000:3000"
@@ -51,7 +48,7 @@ services:
       - /app/.next
       - /app/node_modules
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000/api
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api
     depends_on:
       - backend
     networks:

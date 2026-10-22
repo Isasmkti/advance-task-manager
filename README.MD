@@ -3,12 +3,17 @@ Task manager app made with Next.js and Laravel Framework   for learning purpose.
 
 # Run Project
 ```bash
-cd ./backend
-# hold on, setup your db before.
-php artisan serve
-
-cd ./frontend
-npm run dev
+# buld and setup
+docker compose up -d --build
+docker exec laravel_backend php artisan migrate
+# migrate check
+docker exec laravel_backend php artisan migrate:status
+# if you want to stop or run again
+docker compose stop
+docker compose start
+# or release ram for other proccess
+docker compose down 
+wsl --shutdown
 ```
 # Api doc
 POST /api/register dan POST /api/login mengembalikan token dan data hero
